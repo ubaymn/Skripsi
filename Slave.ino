@@ -68,7 +68,8 @@ void loop() {
       if(buffer[0] == AlamatSlave && buffer[1] == '@') {
         //Update data Alamat, Arus, Tegangan, Kapasitas, StatusRusak, Sumber, PIR
         //Serial.print("diterima 1@");
-        data[1] = byte(AlamatSlave);
+        data[0] = ' ';
+        data[1] = byte(AlamatSlave); //data yang pertama akan dibaca oleh Pi adalah data[1]
         data[2] = ' ';
         dtostrf(I, 5, 2, arus);
         for (counter=0;counter<5;counter++) {
@@ -92,6 +93,7 @@ void loop() {
         data[23] = byte(statusPIR); //status PIR
         data[24] = ' ';
         data[25] = byte(statusRusak); //status rusak
+        //data[26] = ' ';
         //Serial.println(AlamatSlave);
         //Serial.println(I);
         //Serial.println(V);
@@ -101,23 +103,20 @@ void loop() {
         //Serial.println(data[23]);
         digitalWrite(pinRxTxControl, RS485Tx);
         digitalWrite(pinRxTxControl2, RS485Tx);
-        for(counter=0; counter<sizeof(data)-2; counter++) {
+        for(counter=1; counter<sizeof(data); counter++) {
           Serial.print(data[counter]);
         }
-        //Serial.print('\n');
-        //Serial.write(45);
-        
       }
       if(buffer[0] == Broadcast) {
        if(buffer[1] == '1') {
          statusLampu = 1; //lampu Nyala
          analogWrite(pinPWMLED, 40); //lampu redup
-         Serial.println("Lampu Redup");
+         Serial.write("Lampu Redup");
        }
        if(buffer[1] == '0') {
          statusLampu = 0; //lampu Nyala
          analogWrite(pinPWMLED, 0); //lampu mati
-         Serial.println("Lampu Mati");
+         Serial.write("Lampu Mati");
        }
       }
       memset(buffer, 0, sizeof(buffer));   // Clear contents of Buffer
@@ -127,20 +126,14 @@ void loop() {
     }
   }
 
-  //else {
+  else {
     //Hitung dari Sensor Tegangan
-    //RawVolt = double (analogRead(pinArus));
-    //V = ((RawVolt)/1023.0)*21.4;
+    RawVolt = double (analogRead(pinArus));
+    V = ((RawVolt)/1023.0)*21.4;
     
     //Hitung dari Sensor Arus
-    //RawArus = double(analogRead(pinTegangan));
-    //V = ((RawArus)/1023.0)*5000;
-    //I = ((ACSoffset-V)/mVperAmp);
-  //}
-  //digitalWrite(pinRxTxControl, RS485Tx);
-  //Serial.print("123\n");
-  //delay(1000);
-  //digitalWrite(pinRxTxControl, RS485Rx);
-  //Serial.println(Serial.read());
-  //delay(1000);
+    RawArus = double(analogRead(pinTegangan));
+    V = ((RawArus)/1023.0)*5000;
+    I = ((ACSoffset-V)/mVperAmp);
+  }
 }
