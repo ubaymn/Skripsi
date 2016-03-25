@@ -8,8 +8,8 @@
 const int bSize = 30;
 const int pinArus = A0; //Set pin A0 sebagai masukan Arus
 const int pinTegangan = A1; //Set pin A1 sebagai masukan Tegangan
-const char AlamatSlave = '1'; //Set alamat Slave
-const char Broadcast = '?'; //Set karakter penanda broadcast
+const int AlamatSlave = '1'; //Set alamat Slave
+const int Broadcast = '?'; //Set karakter penanda broadcast
 char buffer[bSize];
 char data[30];
 char arus[5];
@@ -41,7 +41,7 @@ void setup() {
   Serial.begin(9600); //inisialisasi serial
   digitalWrite(pinRxTxControl, RS485Tx); //Set Arduino mode Tx
   digitalWrite(pinRxTxControl2, RS485Tx); //Set Arduino mode Tx
-  Serial.print("Start PLJU");
+  //Serial.print("Start PLJU");
   delay(1000);
   attachInterrupt(digitalPinToInterrupt(pinPIR), PIR, CHANGE); //Setting interrupt pada pin PD2 dengan mode CHANGE, panggil PIR()
   digitalWrite(pinRxTxControl, RS485Rx); //Set Arduino mode Tx 
@@ -63,12 +63,12 @@ void loop() {
   if(Serial.available()>0) {
     dataMasuk = Serial.readBytesUntil('\n', buffer, sizeof(buffer));  
     if (dataMasuk>0) {
-      Serial.println(buffer);
+      //Serial.println(buffer);
       //delay(1000);
       if(buffer[0] == AlamatSlave && buffer[1] == '@') {
         //Update data Alamat, Arus, Tegangan, Kapasitas, StatusRusak, Sumber, PIR
         //Serial.print("diterima 1@");
-        data[1] = AlamatSlave;
+        data[1] = byte(AlamatSlave);
         data[2] = ' ';
         dtostrf(I, 5, 2, arus);
         for (counter=0;counter<5;counter++) {
@@ -101,9 +101,10 @@ void loop() {
         //Serial.println(data[23]);
         digitalWrite(pinRxTxControl, RS485Tx);
         digitalWrite(pinRxTxControl2, RS485Tx);
-        for(counter=0; counter<sizeof(data); counter++) {
-          Serial.println(data[counter]);
+        for(counter=0; counter<sizeof(data)-2; counter++) {
+          Serial.print(data[counter]);
         }
+        //Serial.print('\n');
         //Serial.write(45);
         
       }
@@ -111,12 +112,12 @@ void loop() {
        if(buffer[1] == '1') {
          statusLampu = 1; //lampu Nyala
          analogWrite(pinPWMLED, 40); //lampu redup
-         Serial.print("Lampu Redup");
+         Serial.println("Lampu Redup");
        }
        if(buffer[1] == '0') {
          statusLampu = 0; //lampu Nyala
          analogWrite(pinPWMLED, 0); //lampu mati
-         Serial.print("Lampu Mati");
+         Serial.println("Lampu Mati");
        }
       }
       memset(buffer, 0, sizeof(buffer));   // Clear contents of Buffer
@@ -143,4 +144,3 @@ void loop() {
   //Serial.println(Serial.read());
   //delay(1000);
 }
-
