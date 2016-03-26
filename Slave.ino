@@ -1,7 +1,10 @@
 #define pinRxTxControl 4        //kontrol RS485 arduino RxTx pada pin PD4
 #define pinRxTxControl2 5        //kontrol RS485 arduino RxTx pada pin PD4
+#define pinRelay 6 //kontrol Relay aktif / nonaktif pada PD6
 #define RS485Tx    HIGH    //Logika High untuk enable Transmit RS485
 #define RS485Rx     LOW     //Logika Low untuk enable Receive RS485
+#define SumberPLN HIGH     //Logika High untuk membuat sumber menjadi PLN
+#define SumberBaterai LOW   //Logika Low untuk membuat sumber menjadi Baterai
 #define pinPIR 2 //Set pin PD2 sebagai masukan Interrupt eksternal
 #define pinPWMLED 5 //Set pin PD5 sebagai keluaran PWMLED
 
@@ -18,10 +21,10 @@ char kapasitas[5];
 int statusLampu = '0'; //Menunjukkan status Lampu (1 ->Nyala atau 0 -> Mati)
 int sumber = '0'; //menunjukkan asal sumber daya (1 ->PLN atau 0 -> baterai)
 int statusPIR = '1'; //Menunjukan status PIR (1 -> Aktif atau 0 -> NonAktif)
-int statusRusak = '1'; //Menunjukkan status Rusak (1 ->Rusak atau 0 -> Benar)
+int statusRusak  ; //Menunjukkan status Rusak (0 ->Rusak Baterai dan Lampu, 1 -> Rusak Baterai, 2 -> Rusak Lampu, 3 -> Benar)
+int kondisiBaterai; //Menunjukkan status Rusak Baterai (1 -> Benar atau 0 -> Rusak)
+int kondisiLampu; //Menunjukkan status Rusak Baterai (1 -> Benar atau 0 -> Rusak)
 int dataMasuk; //Banyak data yang masuk
-//int pinPIR = 2; //Set pin PD2 sebagai masukan Interrupt eksternal
-//int pinPWMLED = 5; //Set pin PD5 sebagai keluaran PWMLED
 int counter; //Counter
 //inisialisasi Parameter Sensor Arus
 double mVperAmp = 185; //didapat dari spesifikasi ACS712
@@ -37,7 +40,8 @@ double V = 10.2;
 void setup() {
   pinMode(pinRxTxControl, OUTPUT); //Set pin PD4 sebagai output
   pinMode(pinPWMLED, OUTPUT); //Set pin PD5 sebagai output
-  pinMode(pinPIR, INPUT); //Set pin PD2 sebagai input
+  pinMode(pinRelay, OUTPUT); //Set pin PD2 sebagai input
+  pinMode(pinPIR, INPUT); //Set pin PD2 sebagai input  
   Serial.begin(9600); //inisialisasi serial
   digitalWrite(pinRxTxControl, RS485Tx); //Set Arduino mode Tx
   digitalWrite(pinRxTxControl2, RS485Tx); //Set Arduino mode Tx
@@ -46,6 +50,7 @@ void setup() {
   attachInterrupt(digitalPinToInterrupt(pinPIR), PIR, CHANGE); //Setting interrupt pada pin PD2 dengan mode CHANGE, panggil PIR()
   digitalWrite(pinRxTxControl, RS485Rx); //Set Arduino mode Tx 
   digitalWrite(pinRxTxControl2, RS485Rx); //Set Arduino mode Tx
+  digitalWrite(pinRelay, SumberBaterai);
 }
 
 void PIR() {
@@ -85,15 +90,15 @@ void loop() {
         for (counter=0;counter<5;counter++) {
           data[counter+13]=kapasitas[counter];
         }
-        data[18] = ' ';
-        data[19] = byte(statusLampu); //status nyala atau mati
-        data[20] = ' ';
-        data[21] = byte(sumber); //sumber
-        data[22] = ' ';
-        data[23] = byte(statusPIR); //status PIR
-        data[24] = ' ';
-        data[25] = byte(statusRusak); //status rusak
-        //data[26] = ' ';
+        data[17] = ' ';
+        data[18] = byte(statusLampu); //status nyala atau mati
+        data[19] = ' ';
+        data[20] = byte(sumber); //sumber
+        data[21] = ' ';
+        data[22] = byte(statusPIR); //status PIR
+        data[23] = ' ';
+        data[24] = byte(statusRusak); //status rusak
+        data[25] = ' ';
         //Serial.println(AlamatSlave);
         //Serial.println(I);
         //Serial.println(V);
@@ -128,12 +133,49 @@ void loop() {
 
   else {
     //Hitung dari Sensor Tegangan
-    RawVolt = double (analogRead(pinArus));
+    RawVolt = double (analogRead(pinTegangan));
     V = ((RawVolt)/1023.0)*21.4;
     
     //Hitung dari Sensor Arus
-    RawArus = double(analogRead(pinTegangan));
-    V = ((RawArus)/1023.0)*5000;
-    I = ((ACSoffset-V)/mVperAmp);
+    RawArus = double(analogRead(pinArus));
+    VArus = ((RawArus)/1023.0)*5000;
+    I = ((ACSoffset-VArus)/mVperAmp);
+    if (I == 0) {
+      kondisiLampu=0;
+    }
+    else{
+      kondisiLampu=1;
+    }
+    if (C<10) { //Kapasitas Baerai dibawah 10%
+      digitalWrite(pinRelay, SumberPLN);
+      sumber = '1'; //Sumber PLN
+      if (C==0){
+        kondisiBaterai=0;
+      }
+      else{
+        kondisiBaterai=1;
+      }
+    }
+    else{
+      digitalWrite(pinRelay, SumberBaterai);
+      sumber = '0'; //Sumber Baterai
+      kondisiBaterai=1;  
+    }
+    if (kondisiLampu==0){
+      if (kondisiBaterai == 0){
+        statusRusak='0';
+      }
+      else if (kondisiBaterai == 1){
+        statusRusak='1';
+      }
+    }
+    else if (kondisiLampu == 1){
+      if (kondisiBaterai == 0){
+        statusRusak='2';
+      }
+      else if (kondisiBaterai == 1){
+        statusRusak='3';
+      }
+    }
   }
 }
