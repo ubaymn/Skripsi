@@ -8,12 +8,11 @@
 #define pinPIR 2 //Set pin PD2 sebagai masukan Interrupt eksternal
 #define pinPWMLED 6 //Set pin PD6 sebagai keluaran PWMLED
 
-//const int pinPWMLED = 6;
 const int bSize = 30;
 const int pinArus = A0; //Set pin A0 sebagai masukan Arus
 const int pinTegangan = A1; //Set pin A1 sebagai masukan Tegangan
 const int pinTeganganBat = A2; //Set pin A1 sebagai masukan Tegangan Baterai
-const int AlamatSlave = '1'; //Set alamat Slave
+const int AlamatSlave = '2'; //Set alamat Slave
 const int Broadcast = '?'; //Set karakter penanda broadcast
 char buffer[bSize];
 char data[30];
@@ -28,11 +27,10 @@ int kondisiBaterai; //Menunjukkan status Rusak Baterai (1 -> Benar atau 0 -> Rus
 int kondisiLampu; //Menunjukkan status Rusak Baterai (1 -> Benar atau 0 -> Rusak)
 int dataMasuk; //Banyak data yang masuk
 int counter; //Counter
-int val;
 //inisialisasi Parameter Sensor Arus
 double mVperAmp = 185; //didapat dari spesifikasi ACS712
 double RawArus;
-double ACSoffset = 2500; //Saat tak ada arus seharusnya tegangan bernilai 2500
+double ACSoffset = 2502; //Saat tak ada arus seharusnya tegangan bernilai 2500
 double VArus; //Tegangan dibaca sensor
 double I; //Arus bacaan dari sensor
 double C; //Kapasitas Baterai
@@ -41,6 +39,7 @@ double RawVolt;
 double RawVoltBat;
 double V;
 double VBat;
+volatile int val;
 
 void setup() {
   pinMode(pinRxTxControl, OUTPUT); //Set pin PD4 sebagai output
@@ -56,26 +55,32 @@ void setup() {
   digitalWrite(pinRxTxControl2, RS485Tx); //Set Arduino mode Tx
   //Serial.print("Start PLJU");
   //attachInterrupt(digitalPinToInterrupt(pinPIR), PIR, CHANGE); //Setting interrupt pada pin PD2 dengan mode CHANGE, panggil PIR()
+  attachInterrupt(0, PIR, CHANGE);
+  digitalWrite(pinPIR, LOW);
   digitalWrite(pinRxTxControl, RS485Rx); //Set Arduino mode Rx 
   digitalWrite(pinRxTxControl2, RS485Rx); //Set Arduino mode Rx
-  digitalWrite(pinRelay, SumberBaterai);
+  //digitalWrite(pinRelay, SumberBaterai);
+  digitalWrite(pinRelay, SumberPLN);
 }
 
-//void PIR() {
-//  if(pinPIR == HIGH) {
-//    analogWrite(pinPWMLED, 255); //lampu terang
-//    statusPIR = '1';
-//    Serial.print ("masuk interrupt terang");
-//  }
-//  else {
-//    analogWrite(pinPWMLED, 40); //lampu redup
-//    statusPIR = '0';
-//    Serial.print ("masuk interrupt redup");
-//  }
-//}
+void PIR() {
+  val = digitalRead(pinPIR);
+  if(val == HIGH) {
+    analogWrite(pinPWMLED, 255); //lampu terang
+    statusPIR = '1';
+    Serial.print ("masuk interrupt terang\n");
+    delay(100);
+  }
+  else {
+    analogWrite(pinPWMLED, 40); //lampu redup
+    statusPIR = '0';
+    Serial.print ("masuk interrupt redup\n");
+    delay(100);
+  }
+}
 void loop() {
   digitalWrite(pinRxTxControl, RS485Rx); //Set Arduino mode Rx 
-  digitalWrite(pinRxTxControl2, RS485Rx); //Set Arduino mode Rx
+  digitalWrite(pinRxTxControl2, RS485Rx); //Set Arduino mode Rx  
   if(Serial.available()>0) {
     dataMasuk = Serial.readBytesUntil('\n', buffer, sizeof(buffer));  
     Serial.print (buffer);
@@ -120,7 +125,7 @@ void loop() {
       if(buffer[0] == Broadcast) {
        if(buffer[1] == '1') {
          statusLampu = 1; //lampu Nyala
-         analogWrite(pinPWMLED, 40); //lampu redup
+         analogWrite(pinPWMLED, 1); //lampu redup
          Serial.write("Lampu Redup");
        }
        if(buffer[1] == '0') {
@@ -137,31 +142,27 @@ void loop() {
   }
 
   else {
-  //Baca PIR
-  val = digitalRead(pinPIR);
-  if(val == HIGH) {
-    analogWrite(pinPWMLED, 255); //lampu terang
-    statusPIR = '1';
-    Serial.print ("masuk interrupt terang");
-  }
-  else {
-    analogWrite(pinPWMLED, 0); //lampu redup
-    statusPIR = '0';
-    Serial.print ("masuk interrupt redup");
-  }
     //Hitung dari Sensor Tegangan Baterai
     RawVoltBat = double (analogRead(pinTeganganBat));
-    VBat = ((RawVoltBat)/1023.0)*21.4;
+    VBat = ((RawVoltBat)/1024.0)*16.35;
     //Kapasitas Baterai
     C = (VBat/9.5)*100;
     
-    //Hitung dari Sensor Tegangan
-    RawVolt = double (analogRead(pinTegangan));
-    V = ((RawVolt)/1023.0)*21.4;
+    //Hitung rata2 dari Sensor Tegangan
+    for(counter=0;counter<150;counter++)
+    {
+     RawVolt += double (analogRead(pinTegangan));
+    }
+    RawVolt = RawVolt/150;
+    V = ((RawVolt)/1024.0)*24.5;
     
-    //Hitung dari Sensor Arus
-    RawArus = double(analogRead(pinArus));
-    VArus = ((RawArus)/1023.0)*5000;
+    //Hitung rata2 dari Sensor Arus
+    for(counter=0;counter<150;counter++)
+    {
+     RawArus += double (analogRead(pinArus));
+    }
+    RawArus = RawArus/150;
+    VArus = ((RawArus)/1024.0)*5000;
     I = ((ACSoffset-VArus)/mVperAmp);
     if (I == 0) {
       kondisiLampu=0;
@@ -169,7 +170,7 @@ void loop() {
     else{
       kondisiLampu=1;
     }
-    if (C<10) { //Kapasitas Baerai dibawah 10%
+    if (C<90) { //Kapasitas Baerai dibawah 10%
       digitalWrite(pinRelay, SumberPLN);
       sumber = '1'; //Sumber PLN
       if (C==0){
@@ -201,4 +202,15 @@ void loop() {
       }
     }
   }
+  Serial.print("I:");
+  Serial.print(I);
+  Serial.print(" V:");
+  Serial.print(V);
+  Serial.print(" C:");
+  Serial.print(C);
+  Serial.print(" Sumber:");
+  Serial.print(sumber);
+  Serial.print(" Status PIR:");
+  Serial.print(statusPIR);
+  Serial.print("\n");
 }
