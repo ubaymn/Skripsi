@@ -19,12 +19,12 @@ char data[30];
 char arus[5];
 char tegangan[5];
 char kapasitas[5];
-int statusLampu = '0'; //Menunjukkan status Lampu (1 ->Nyala atau 0 -> Mati)
-int sumber = '0'; //menunjukkan asal sumber daya (1 ->PLN atau 0 -> baterai)
-int statusPIR = '1'; //Menunjukan status PIR (1 -> Aktif atau 0 -> NonAktif)
-int statusRusak  ; //Menunjukkan status Rusak (0 ->Rusak Baterai dan Lampu, 1 -> Rusak Baterai, 2 -> Rusak Lampu, 3 -> Benar)
-int kondisiBaterai; //Menunjukkan status Rusak Baterai (1 -> Benar atau 0 -> Rusak)
-int kondisiLampu; //Menunjukkan status Rusak Baterai (1 -> Benar atau 0 -> Rusak)
+char statusLampu = '0'; //Menunjukkan status Lampu (1 ->Nyala atau 0 -> Mati)
+char sumber = '0'; //menunjukkan asal sumber daya (1 ->PLN atau 0 -> baterai)
+char statusPIR = '1'; //Menunjukan status PIR (1 -> Aktif atau 0 -> NonAktif)
+char statusRusak  ; //Menunjukkan status Rusak (0 ->Rusak Baterai dan Lampu, 1 -> Rusak Baterai, 2 -> Rusak Lampu, 3 -> Benar)
+char kondisiBaterai; //Menunjukkan status Rusak Baterai (1 -> Benar atau 0 -> Rusak)
+char kondisiLampu; //Menunjukkan status Rusak Baterai (1 -> Benar atau 0 -> Rusak)
 int dataMasuk; //Banyak data yang masuk
 int counter; //Counter
 //inisialisasi Parameter Sensor Arus
@@ -60,7 +60,7 @@ void setup() {
   digitalWrite(pinRxTxControl, RS485Rx); //Set Arduino mode Rx 
   digitalWrite(pinRxTxControl2, RS485Rx); //Set Arduino mode Rx
   //digitalWrite(pinRelay, SumberBaterai);
-  digitalWrite(pinRelay, SumberPLN);
+  digitalWrite(pinRelay, SumberBaterai);
 }
 
 void PIR() {
@@ -68,14 +68,14 @@ void PIR() {
   if(val == HIGH) {
     analogWrite(pinPWMLED, 255); //lampu terang
     statusPIR = '1';
-    Serial.print ("masuk interrupt terang\n");
-    delay(100);
+    //Serial.print ("masuk interrupt terang\n");
+    //delay(100);
   }
   else {
     analogWrite(pinPWMLED, 40); //lampu redup
     statusPIR = '0';
-    Serial.print ("masuk interrupt redup\n");
-    delay(100);
+    //Serial.print ("masuk interrupt redup\n");
+    //delay(100);
   }
 }
 void loop() {
@@ -83,9 +83,9 @@ void loop() {
   digitalWrite(pinRxTxControl2, RS485Rx); //Set Arduino mode Rx  
   if(Serial.available()>0) {
     dataMasuk = Serial.readBytesUntil('\n', buffer, sizeof(buffer));  
-    Serial.print (buffer);
+    //Serial.print (buffer);
     if (dataMasuk>0) {
-      Serial.println(buffer);
+      //Serial.println(buffer);
       delay(1000);
       if(buffer[0] == AlamatSlave && buffer[1] == '@') {
         //Update data Alamat, Arus, Tegangan, Kapasitas, StatusRusak, Sumber, PIR
@@ -170,7 +170,7 @@ void loop() {
     else{
       kondisiLampu=1;
     }
-    if (C<90) { //Kapasitas Baerai dibawah 10%
+    if (C<40) { //Kapasitas Baerai dibawah 10%
       digitalWrite(pinRelay, SumberPLN);
       sumber = '1'; //Sumber PLN
       if (C==0){
@@ -202,15 +202,4 @@ void loop() {
       }
     }
   }
-  Serial.print("I:");
-  Serial.print(I);
-  Serial.print(" V:");
-  Serial.print(V);
-  Serial.print(" C:");
-  Serial.print(C);
-  Serial.print(" Sumber:");
-  Serial.print(sumber);
-  Serial.print(" Status PIR:");
-  Serial.print(statusPIR);
-  Serial.print("\n");
 }
