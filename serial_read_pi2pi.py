@@ -68,8 +68,8 @@ def InputDataPHP(ID,time_now):
 
     
     try :      
-        cur.execute ("""INSERT INTO slave_1 (Sumber_daya, Status_nyala, Status_rusak, Date, Time, PIR, Daya, Tegangan, Arus, Baterai)
-                        VALUES ( %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)""",(So, Stat, StatR, date, times, PIR, P, V, I, C)) 
+        cur.execute ("""INSERT INTO slave_1 (ID, Sumber_daya, Status_nyala, Status_rusak, Date, Time, PIR, Daya, Tegangan, Arus, Baterai)
+                        VALUES ( %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)""",(ID, So, Stat, StatR, date, times, PIR, P, V, I, C)) 
         db.commit()
     
     except :  
